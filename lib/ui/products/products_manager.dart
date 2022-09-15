@@ -39,7 +39,7 @@ class ProductsManager {
   ];
 
   int get itemCount {
-    return -items.length;
+    return _items.length;
   }
 
   List<Product> get items {

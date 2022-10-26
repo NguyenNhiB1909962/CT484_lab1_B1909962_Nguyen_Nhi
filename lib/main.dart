@@ -11,9 +11,18 @@ import 'ui/products/product_overview_screen.dart';
 import 'ui/products/user_products_screen.dart';
 import 'ui/cart/cart_screen.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
-void main() {
+import 'ui/screens.dart';
+
+// void main() {
+//   runApp(const MyApp());
+// }
+
+Future<void> main() async {
+  // (1) Load the .env file
+  await dotenv.load();
   runApp(const MyApp());
 }
 
@@ -25,6 +34,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // (2) Create and provide AuthManager
+        ChangeNotifierProvider(
+          create: (context) => AuthManager(),
+        ),
         ChangeNotifierProvider(
           create: (ctx) => ProductsManager(),
         ),
@@ -35,83 +48,99 @@ class MyApp extends StatelessWidget {
           create: (ctx) => OrdersManager(),
         ),
       ],
-      child: MaterialApp(
-        title: 'My Shop',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // Try running your application with "flutter run". You'll see the
-          // application has a blue toolbar. Then, without quitting the app, try
-          // changing the primarySwatch below to Colors.green and then invoke
-          // "hot reload" (press "r" in the console where you ran "flutter run",
-          // or simply save your changes to "hot reload" in a Flutter IDE).
-          // Notice that the counter didn't reset back to zero; the application
-          // is not restarted.
-          fontFamily: 'Lato',
-          colorScheme: ColorScheme.fromSwatch(
-            primarySwatch: Colors.purple,
-          ).copyWith(
-                  secondary: Colors.deepOrange,
-          )
-        ),
-        
-        // home: Container(
-        //   color: Colors.green,
-        // )
+      // (3) Consume the AuthManager instance
+      child: Consumer<AuthManager>(
+        builder: (ctx, authManager, child) {
+          return MaterialApp(
+            title: 'My Shop',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              // This is the theme of your application.
+              //
+              // Try running your application with "flutter run". You'll see the
+              // application has a blue toolbar. Then, without quitting the app, try
+              // changing the primarySwatch below to Colors.green and then invoke
+              // "hot reload" (press "r" in the console where you ran "flutter run",
+              // or simply save your changes to "hot reload" in a Flutter IDE).
+              // Notice that the counter didn't reset back to zero; the application
+              // is not restarted.
+              fontFamily: 'Lato',
+              colorScheme: ColorScheme.fromSwatch(
+                primarySwatch: Colors.purple,
+              ).copyWith(
+                      secondary: Colors.deepOrange,
+              )
+            ),
+            
+            // home: Container(
+            //   color: Colors.green,
+            // )
 
-        // home: const SafeArea(
+            // home: const SafeArea(
 
-        //   // child: ProductDetailScreen(
-        //   //   ProductsManager().items[0],
-        //   // ),
+            //   // child: ProductDetailScreen(
+            //   //   ProductsManager().items[0],
+            //   // ),
 
-        //   // child: ProductsOverviewScreen(),
+            //   // child: ProductsOverviewScreen(),
 
-        //   // child: UserProductsScreen(),
+            //   // child: UserProductsScreen(),
 
-        //   // child: CartScreen(),
+            //   // child: CartScreen(),
 
-        //   child: OrdersScreen(),
-        // ),
+            //   child: OrdersScreen(),
+            // ),
 
-        home: const ProductsOverviewScreen(),
+            // home: const ProductsOverviewScreen(),
 
-        routes: {
-          CartScreen.routeName:
-            (ctx) => const CartScreen(),
-          OrdersScreen.routeName:
-            (ctx) => const OrdersScreen(),
-          UserProductsScreen.routeName:
-            (ctx) => const UserProductsScreen(),
-        },
-        onGenerateRoute: (settings) {
-          if (settings.name == ProductDetailScreen.routeName) {
-            final productId = settings.arguments as String;
-            return MaterialPageRoute(
-              builder: (ctx) {
-                return ProductDetailScreen(
-                  ctx.read<ProductsManager>().findById(productId),
+            home: authManager.isAuth
+              ? const ProductsOverviewScreen()
+              : FutureBuilder(
+                future: authManager.tryAutoLogin(),
+                builder: (ctx, snapshot) {
+                  return snapshot.connectionState == ConnectionState.waiting
+                    ? const SplashScreen()
+                    : const AuthScreen();
+                },
+              ),
+
+            routes: {
+              CartScreen.routeName:
+                (ctx) => const CartScreen(),
+              OrdersScreen.routeName:
+                (ctx) => const OrdersScreen(),
+              UserProductsScreen.routeName:
+                (ctx) => const UserProductsScreen(),
+            },
+            onGenerateRoute: (settings) {
+              if (settings.name == ProductDetailScreen.routeName) {
+                final productId = settings.arguments as String;
+                return MaterialPageRoute(
+                  builder: (ctx) {
+                    return ProductDetailScreen(
+                      ctx.read<ProductsManager>().findById(productId),
+                    );
+                  },
                 );
-              },
-            );
-          }
+              }
 
-          if (settings.name == EditProductScreen.routeName) {
-            final productId = settings.arguments as String?;
-            return MaterialPageRoute(
-              builder: (ctx) {
-                return EditProductScreen(
-                  productId != null
-                  ? ctx.read<ProductsManager>().findById(productId)
-                  : null,
+              if (settings.name == EditProductScreen.routeName) {
+                final productId = settings.arguments as String?;
+                return MaterialPageRoute(
+                  builder: (ctx) {
+                    return EditProductScreen(
+                      productId != null
+                      ? ctx.read<ProductsManager>().findById(productId)
+                      : null,
+                    );
+                  },
                 );
-              },
-            );
-          }
-          return null;
+              }
+              return null;
+            },
+          );
         },
-      ),
+      )
     );
   }
 }
